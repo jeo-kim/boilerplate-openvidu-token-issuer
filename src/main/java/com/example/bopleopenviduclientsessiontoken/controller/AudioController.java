@@ -60,26 +60,7 @@ public class AudioController {
             log.info("이미 존재하는 room 에 대한 참여요청입니다. roomId = {}", roomId);
             try {
 
-                //특정 roomId에 유효하게 발급되어 있는 token의 수 세기 위한 시도들
-                int nowParticipants = this.mapSessionNamesTokens.get(roomId).size();
-                log.info("{}번 room에 대해 발급된 유효한 token 개수는 {}", roomId, this.mapSessionNamesTokens.get(roomId).size());
-
-                Long maxParticipants = chatEntryDto.getParticipantCount();
-
-                if (maxParticipants <= nowParticipants) {
-                    log.info("{}번 room에 대해 수용가능 인원이 이미 찼어요. 현재 인원:{}, 최대 인원:{}", roomId, nowParticipants, maxParticipants);
-                    return ResponseEntity.badRequest().body("수용가능 인원이 이미 찼어요.");
-                }
-
-                // 방금 막 생성한 connectionProperties 를 기반으로 token 만들기
-                String token = this.mapSessions.get(roomId).createConnection(connectionProperties).getToken();
-                log.info("token {}", token);
-
-                // token 을 키로 하고 role 을 값으로 갖는 map 객체를 현재 roomId(=sessionName)를 키로 갖는 더 상위 map 객체의 값으로 넣음.
-                this.mapSessionNamesTokens.get(roomId).put(token, role);
-
-                Map<String, String> map = getStringStringMap(chatEntryDto, roomId, role, token, "참여요청 성공");
-                return ResponseEntity.ok().body(map);
+                return joinExistingRoom(chatEntryDto, roomId, role, connectionProperties);
 
             } catch (Exception e) {
                 log.error("기존 방에 참여를 요청했으나 exception 발생. errorMessage = {}", e.getMessage());
@@ -88,30 +69,7 @@ public class AudioController {
         } else {
             // 새로 음성채팅방을 개설하는 경우
             try {
-                log.info("새로운 room 개설 요청입니다. roomId = {}", roomId);
-
-                if (chatEntryDto.getRole() != AudioChatRole.MODERATOR) {
-                    log.error("방장만이 방 개설 요청을 할 수 있습니다. 현재 role: {}", chatEntryDto.getRole());
-                    String message = "방장만이 방 개설 요청을 할 수 있습니다. 현재 role: " + chatEntryDto.getRole();
-                    throw new IllegalArgumentException(message);
-                }
-
-                // 새 openVidu session 을 만들기
-                Session session = this.openVidu.createSession();
-
-                // 방금 막 생성한 connectionProperties 를 기반으로 token 만들기
-                String token = session.createConnection(connectionProperties).getToken();
-
-
-                // 새로 개설된 방을 등록
-                this.mapSessions.put(roomId, session);
-                // 이 방에 대해 지금 참여자의 정보(token(key) 과 role(val))를 담기
-                this.mapSessionNamesTokens.put(roomId, new ConcurrentHashMap<>());
-                this.mapSessionNamesTokens.get(roomId).put(token, role);
-
-                // 개설요청 성공한 roomId, 요청한 memberName, 그리고 프론트에서 openvidu session connect 에 사용할 token 을 response 로 보내기
-                Map<String, String> map = getStringStringMap(chatEntryDto, roomId, role, token, "개설요청 성공");
-                return ResponseEntity.ok().body(map);
+                return createNewSession(chatEntryDto, roomId, role, connectionProperties);
 
             } catch (Exception e) {
                 log.error("새로운 방 개설을 요청했으나 exception 발생. errorMessage = {}", e.getMessage());
@@ -119,6 +77,54 @@ public class AudioController {
                 return ResponseEntity.badRequest().body(e.getMessage());
             }
         }
+    }
+
+    private ResponseEntity<Object> joinExistingRoom(AudioChatEntryDto chatEntryDto, Long roomId, OpenViduRole role, ConnectionProperties connectionProperties) throws OpenViduJavaClientException, OpenViduHttpException {
+        int nowParticipants = this.mapSessionNamesTokens.get(roomId).size();
+        log.info("{}번 room에 대해 발급된 유효한 token 개수는 {}", roomId, this.mapSessionNamesTokens.get(roomId).size());
+
+        Long maxParticipants = chatEntryDto.getParticipantCount();
+
+        if (maxParticipants <= nowParticipants) {
+            log.info("{}번 room에 대해 수용가능 인원이 이미 찼어요. 현재 인원:{}, 최대 인원:{}", roomId, nowParticipants, maxParticipants);
+            return ResponseEntity.badRequest().body("수용가능 인원이 이미 찼어요.");
+        }
+
+        // 방금 막 생성한 connectionProperties 를 기반으로 token 만들기
+        String token = this.mapSessions.get(roomId).createConnection(connectionProperties).getToken();
+        log.info("token {}", token);
+
+        // token 을 키로 하고 role 을 값으로 갖는 map 객체를 현재 roomId(=sessionName)를 키로 갖는 더 상위 map 객체의 값으로 넣음.
+        this.mapSessionNamesTokens.get(roomId).put(token, role);
+
+        Map<String, String> map = getStringStringMap(chatEntryDto, roomId, role, token, "참여요청 성공");
+        return ResponseEntity.ok().body(map);
+    }
+
+    private ResponseEntity<Object> createNewSession(AudioChatEntryDto chatEntryDto, Long roomId, OpenViduRole role, ConnectionProperties connectionProperties) throws OpenViduJavaClientException, OpenViduHttpException {
+        log.info("새로운 room 개설 요청입니다. roomId = {}", roomId);
+
+        if (chatEntryDto.getRole() != AudioChatRole.MODERATOR) {
+            log.error("방장만이 방 개설 요청을 할 수 있습니다. 현재 role: {}", chatEntryDto.getRole());
+            String message = "방장만이 방 개설 요청을 할 수 있습니다. 현재 role: " + chatEntryDto.getRole();
+            throw new IllegalArgumentException(message);
+        }
+
+        // 새 openVidu session 을 만들기
+        Session session = this.openVidu.createSession();
+
+        // 방금 막 생성한 connectionProperties 를 기반으로 token 만들기
+        String token = session.createConnection(connectionProperties).getToken();
+
+        // 새로 개설된 방을 등록
+        this.mapSessions.put(roomId, session);
+        // 이 방에 대해 지금 참여자의 정보(token(key) 과 role(val))를 담기
+        this.mapSessionNamesTokens.put(roomId, new ConcurrentHashMap<>());
+        this.mapSessionNamesTokens.get(roomId).put(token, role);
+
+        // 개설요청 성공한 roomId, 요청한 memberName, 그리고 프론트에서 openvidu session connect 에 사용할 token 을 response 로 보내기
+        Map<String, String> map = getStringStringMap(chatEntryDto, roomId, role, token, "개설요청 성공");
+        return ResponseEntity.ok().body(map);
     }
 
     private OpenViduRole setOvRole(AudioChatEntryDto chatEntryDto) {
@@ -182,7 +188,6 @@ public class AudioController {
                     this.mapSessions.remove(roomId);
                     log.info("방장이 퇴장했으므로 채팅방 {}도 삭제됩니다.", roomId);
                 }
-
                 String message = roomId + "에 대한 퇴장 요청 성공, 퇴장한 memberName: " + memberName;
                 return ResponseEntity.ok().body(message);
             } else {
