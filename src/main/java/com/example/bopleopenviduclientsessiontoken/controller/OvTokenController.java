@@ -18,9 +18,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/audio")
+@RequestMapping("/auth/api/openvidu")
 @CrossOrigin("*")
-public class AudioController {
+public class OvTokenController {
 
     private OpenVidu openVidu;
     private Map<Long, Session> mapSessions = new ConcurrentHashMap<>();
@@ -31,14 +31,14 @@ public class AudioController {
 
     private TokenVerifier tokenVerifier;
 
-    public AudioController(@Value("${openvidu.secret}") String secret, @Value("${openvidu.url}") String openviduUrl, TokenVerifier tokenVerifier) {
+    public OvTokenController(@Value("${openvidu.secret}") String secret, @Value("${openvidu.url}") String openviduUrl, TokenVerifier tokenVerifier) {
         this.SECRET = secret;
         this.OPENVIDU_URL = openviduUrl;
         this.openVidu = new OpenVidu(OPENVIDU_URL, SECRET);
         this.tokenVerifier = tokenVerifier;
     }
 
-    @PostMapping(value = "/join")
+    @PostMapping(value = "/getToken")
     public ResponseEntity<Object> getToken(@RequestHeader Map<String, String> header, @RequestBody AudioChatEntryDto chatEntryDto) {
 
         // Jwt 토큰으로 검증
@@ -160,7 +160,7 @@ public class AudioController {
         return map;
     }
 
-    @PostMapping(value = "/leave")
+    @PostMapping(value = "/deleteToken")
     public ResponseEntity<Object> leaveRoom(@RequestBody AudioChatLeaveDto chatLeaveDto) {
 
         log.info("채팅방 퇴장 요청입니다.", chatLeaveDto);
