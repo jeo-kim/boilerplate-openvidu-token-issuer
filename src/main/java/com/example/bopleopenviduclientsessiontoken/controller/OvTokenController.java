@@ -41,9 +41,19 @@ public class OvTokenController {
     @PostMapping(value = "/getToken")
     public ResponseEntity<Object> getToken(@RequestHeader Map<String, String> header, @RequestBody AudioChatEntryDto chatEntryDto) {
 
-        // Jwt 토큰으로 검증
-        ResponseEntity<Object> body = validate(header, chatEntryDto);
-        if (body != null) return body;
+        String jwtToken = header.get("authorization").replaceFirst("Bearer ", "");
+        log.info("token: {}", jwtToken);
+        Jws<Claims> claimsJws = tokenVerifier.validateToken(jwtToken);
+        String userEmail = (String) claimsJws.getBody().get("sub");
+        log.info("userEmail: {}", userEmail);
+        String nickname = (String) claimsJws.getBody().get("aud");
+        log.info("nickname: {}", nickname);
+
+
+        if (!chatEntryDto.getMemberName().equals(nickname)){
+            return ResponseEntity.badRequest().body("jwt token의 사용자 정보와 chatEntryDto의 사용자 정보가 불일치합니다!");
+        }
+
 
         Long roomId = chatEntryDto.getRoomId(); // 참여요청한 멤버가 들어가려는 방 고유번호
 
@@ -58,6 +68,8 @@ public class OvTokenController {
         // 이미 생성된 음성채팅방에 대한 참여 요청일 경우
         if (this.mapSessions.get(roomId) != null) {
             log.info("이미 존재하는 room 에 대한 참여요청입니다. roomId = {}", roomId);
+
+
             try {
 
                 return joinExistingRoom(chatEntryDto, roomId, role, connectionProperties);
@@ -140,9 +152,13 @@ public class OvTokenController {
 
     private ResponseEntity<Object> validate(Map<String, String> header, AudioChatEntryDto chatEntryDto) {
         String jwtToken = header.get("authorization").replaceFirst("Bearer ", "");
+        log.info("token: {}", jwtToken);
         Jws<Claims> claimsJws = tokenVerifier.validateToken(jwtToken);
         String userEmail = (String) claimsJws.getBody().get("sub");
+        log.info("userEmail: {}", userEmail);
         String nickname = (String) claimsJws.getBody().get("aud");
+        log.info("nickname: {}", nickname);
+
 
         if (!chatEntryDto.getMemberName().equals(nickname)){
             return ResponseEntity.badRequest().body("jwt token의 사용자 정보와 chatEntryDto의 사용자 정보가 불일치합니다!");
