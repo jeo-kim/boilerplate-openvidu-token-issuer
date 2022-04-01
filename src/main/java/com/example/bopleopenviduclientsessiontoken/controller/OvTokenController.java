@@ -41,19 +41,18 @@ public class OvTokenController {
     @PostMapping(value = "/getToken")
     public ResponseEntity<Object> getToken(@RequestHeader Map<String, String> header, @RequestBody AudioChatEntryDto chatEntryDto) {
 
+        // jwtToken 유효성 검증
         String jwtToken = header.get("authorization").replaceFirst("Bearer ", "");
         log.info("token: {}", jwtToken);
         Jws<Claims> claimsJws = tokenVerifier.validateToken(jwtToken);
-        String userEmail = (String) claimsJws.getBody().get("sub");
-        log.info("userEmail: {}", userEmail);
+
+        // jwtToken 의 사용자 정보와 입장 정보 비교
         String nickname = (String) claimsJws.getBody().get("aud");
         log.info("nickname: {}", nickname);
-
 
         if (!chatEntryDto.getMemberName().equals(nickname)){
             return ResponseEntity.badRequest().body("jwt token의 사용자 정보와 chatEntryDto의 사용자 정보가 불일치합니다!");
         }
-
 
         Long roomId = chatEntryDto.getRoomId(); // 참여요청한 멤버가 들어가려는 방 고유번호
 
@@ -69,9 +68,7 @@ public class OvTokenController {
         if (this.mapSessions.get(roomId) != null) {
             log.info("이미 존재하는 room 에 대한 참여요청입니다. roomId = {}", roomId);
 
-
             try {
-
                 return joinExistingRoom(chatEntryDto, roomId, role, connectionProperties);
 
             } catch (Exception e) {
@@ -82,7 +79,6 @@ public class OvTokenController {
             // 새로 음성채팅방을 개설하는 경우
             try {
                 return createNewSession(chatEntryDto, roomId, role, connectionProperties);
-
             } catch (Exception e) {
                 log.error("새로운 방 개설을 요청했으나 exception 발생. errorMessage = {}", e.getMessage());
                 log.error("새로운 방 개설을 요청했으나 exception 발생. e = {}", e);
@@ -92,15 +88,15 @@ public class OvTokenController {
     }
 
     private ResponseEntity<Object> joinExistingRoom(AudioChatEntryDto chatEntryDto, Long roomId, OpenViduRole role, ConnectionProperties connectionProperties) throws OpenViduJavaClientException, OpenViduHttpException {
-        int nowParticipants = this.mapSessionNamesTokens.get(roomId).size();
-        log.info("{}번 room에 대해 발급된 유효한 token 개수는 {}", roomId, this.mapSessionNamesTokens.get(roomId).size());
-
-        Long maxParticipants = chatEntryDto.getParticipantCount();
-
-        if (maxParticipants <= nowParticipants) {
-            log.info("{}번 room에 대해 수용가능 인원이 이미 찼어요. 현재 인원:{}, 최대 인원:{}", roomId, nowParticipants, maxParticipants);
-            return ResponseEntity.badRequest().body("수용가능 인원이 이미 찼어요.");
-        }
+//        int nowParticipants = this.mapSessionNamesTokens.get(roomId).size();
+//        log.info("{}번 room에 대해 발급된 유효한 token 개수는 {}", roomId, this.mapSessionNamesTokens.get(roomId).size());
+//
+//        Long maxParticipants = chatEntryDto.getParticipantCount();
+//
+//        if (maxParticipants <= nowParticipants) {
+//            log.info("{}번 room에 대해 수용가능 인원이 이미 찼어요. 현재 인원:{}, 최대 인원:{}", roomId, nowParticipants, maxParticipants);
+//            return ResponseEntity.badRequest().body("수용가능 인원이 이미 찼어요.");
+//        }
 
         // 방금 막 생성한 connectionProperties 를 기반으로 token 만들기
         String token = this.mapSessions.get(roomId).createConnection(connectionProperties).getToken();
@@ -148,22 +144,6 @@ public class OvTokenController {
             role = OpenViduRole.PUBLISHER;
         }
         return role;
-    }
-
-    private ResponseEntity<Object> validate(Map<String, String> header, AudioChatEntryDto chatEntryDto) {
-        String jwtToken = header.get("authorization").replaceFirst("Bearer ", "");
-        log.info("token: {}", jwtToken);
-        Jws<Claims> claimsJws = tokenVerifier.validateToken(jwtToken);
-        String userEmail = (String) claimsJws.getBody().get("sub");
-        log.info("userEmail: {}", userEmail);
-        String nickname = (String) claimsJws.getBody().get("aud");
-        log.info("nickname: {}", nickname);
-
-
-        if (!chatEntryDto.getMemberName().equals(nickname)){
-            return ResponseEntity.badRequest().body("jwt token의 사용자 정보와 chatEntryDto의 사용자 정보가 불일치합니다!");
-        }
-        return null;
     }
 
     private Map<String, String> getStringStringMap(AudioChatEntryDto chatMember, Long roomId, OpenViduRole role, String token, String message) {
