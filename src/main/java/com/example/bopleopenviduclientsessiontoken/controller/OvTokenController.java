@@ -42,17 +42,17 @@ public class OvTokenController {
     public ResponseEntity<Object> getToken(@RequestHeader Map<String, String> header, @RequestBody AudioChatEntryDto chatEntryDto) {
 
         // jwtToken 유효성 검증
-        String jwtToken = header.get("authorization").replaceFirst("Bearer ", "");
-        log.info("token: {}", jwtToken);
-        Jws<Claims> claimsJws = tokenVerifier.validateToken(jwtToken);
-
-        // jwtToken 의 사용자 정보와 입장 정보 비교
-        String nickname = (String) claimsJws.getBody().get("aud");
-        log.info("nickname: {}", nickname);
-
-        if (!chatEntryDto.getMemberName().equals(nickname)){
-            return ResponseEntity.badRequest().body("jwt token의 사용자 정보와 chatEntryDto의 사용자 정보가 불일치합니다!");
-        }
+//        String jwtToken = header.get("authorization").replaceFirst("Bearer ", "");
+//        log.info("token: {}", jwtToken);
+//        Jws<Claims> claimsJws = tokenVerifier.validateToken(jwtToken);
+//
+//        // jwtToken 의 사용자 정보와 입장 정보 비교
+//        String nickname = (String) claimsJws.getBody().get("aud");
+//        log.info("nickname: {}", nickname);
+//
+//        if (!chatEntryDto.getMemberName().equals(nickname)){
+//            return ResponseEntity.badRequest().body("jwt token의 사용자 정보와 chatEntryDto의 사용자 정보가 불일치합니다!");
+//        }
 
         Long roomId = chatEntryDto.getRoomId(); // 참여요청한 멤버가 들어가려는 방 고유번호
 
