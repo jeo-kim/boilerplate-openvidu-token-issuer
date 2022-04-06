@@ -19,7 +19,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @RestController
 @RequestMapping("/auth/api/openvidu")
-@CrossOrigin(allowedHeaders = "*", origins = {"https://localhost:3000","http://localhost:3000", "https://127.0.0.1:3000", "http://127.0.0.1:3000"})
+
+@CrossOrigin(allowedHeaders = "*", exposedHeaders = {"*"},origins = {"https://localhost:3000","http://localhost:3000", 
+                                              "https://127.0.0.1:3000", "http://127.0.0.1:3000"},allowCredentials ="true")
 public class OvTokenController {
 
     private OpenVidu openVidu;
